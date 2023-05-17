@@ -557,11 +557,11 @@ app.post(
       );
       if (result) {
         try {
-          User.findOne({ where: { email: request.user.email } }).then(
-            (user) => {
+          User.findOne({ where: { email: request.user.email } })
+            .then((user) => {
               user.resetPassword(hashedNewPwd);
-            }
-          );
+            })
+            .catch((err) => console.log(err));
           request.flash("success", "Password changed successfully");
           return response.redirect("/tasks");
         } catch (error) {
