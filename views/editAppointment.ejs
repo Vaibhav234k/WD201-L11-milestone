@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<%= csrfToken %>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title> Edit Appointment</title>
+   
+</head>
+<body class="bg-blue-100" >
+    <header class="text-gray-600 bg-blue-200">
+        <div class="container mx-auto flex flex-wrap p-5 flex-col md:flex-row items-center">
+          <a class="flex title-font font-medium items-center text-gray-900 mb-4 md:mb-0">
+            <span class="ml-3 text-2xl px-3 py-3 font-bold text-2xl">ScheduleEase</span>
+          </a>
+          <nav class="md:ml-auto flex flex-wrap  gap-4 items-center text-base justify-center">
+            <a  class="text-xl bg-green-500 text-white rounded px-2" href="/home">Home </a>
+          <a class="text-xl bg-red-500 text-white rounded px-2" href="/signout">Logout</a>
+          <a class="text-xl bg-green-500 text-white rounded px-2" href="/user/passwordReset">Reset Password</a>
+          </nav>
+        </div>
+    </header>
+    <div class="relative mx-auto mb-8 w-fit">
+        <% if(messages && messages.error && messages.error.length > 0)  { %>
+           <% for(var i=0; i<messages.error.length; i++) { %>
+                <br>   <li class="text-white rounded px-40 py-4 bg-red-500"> <%= messages.error[i] %></li>
+           <% } %>
+         <% } %>
+      </div>
+    <div class="relative bg-gray-200 px-6 pb-5 shadow-xl ring-1 ring-gray-900/5 sm:mx-auto sm:max-w-lg sm:rounded-lg sm:px-10">
+        <div class="mx-auto max-w-md">
+            <h2 class="text-2xl  text-center font-bold my-5">Edit Appointment Title
+                
+            </h2>
+           
+            <div class="divide-y  divide-gray-300/50">
+                <div class="space-y-6 text-base leading-7 text-ray-600">
+                    <form action="/appointments/<%=id%>/<%=userId%>/edit" method="post">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <label for="appointment" class="text-md w-40 inline-block font-medium leading-5 text-gray-700">
+                           Enter New Title
+                        </label>
+                        <input required type="text" id="appointment" name="appointment" value="<%=appointmentName%>" class="bg-gray-100 inline-block rounded-lg shadow-md py-3 px-4 mb-5 text-base leading-6 placeolder-gray-500" placeholder="Enter Appointment" required><br/>
+        
+                     
+                       <button type="submit" class="w-fit rounded-lg shadow-lg px-5 py-3 bg-green-500 text-white hover:bg-green-400 focus:outline-none focus block">Update Appointment</button>
+                    </form>
+                    </div>    
+            </div>
+        </div>
+    </div>
+</body>
+</html>

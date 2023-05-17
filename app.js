@@ -84,6 +84,16 @@ app.get("/", async (request, response) => {
     });
   }
 });
+
+app.get("/signout", (request, response, next) => {
+  request.logout((err) => {
+    if (err) {
+      return next(err);
+    }
+    response.redirect("/");
+  });
+});
+
 //new Account
 app.post("/newaccount", async (request, response) => {
   if (request.body.firstName == false) {
@@ -187,7 +197,19 @@ app.post(
     response.redirect("/tasks");
   }
 );
-//New appoinment
+//app.get get request
+app.get(
+  "/appointment/new",
+  connectEnsureLogin.ensureLoggedIn(),
+  async (request, response) => {
+    response.render("newappointment", {
+      title: "New Appointment",
+      csrfToken: request.csrfToken(),
+    });
+  }
+);
+
+//New appoinment post request
 app.post(
   "/appointments/new",
   connectEnsureLogin.ensureLoggedIn(),
@@ -315,6 +337,270 @@ app.get("/signup", (request, response) => {
     title: "Signup",
     csrfToken: request.csrfToken(),
   });
+});
+
+app.get("/home", async (request, response) => {
+  return response.redirect("/");
+});
+
+app.get(
+  "/tasks/:id",
+  connectEnsureLogin.ensureLoggedIn(),
+  async (request, response) => {
+    const userId = request.user.id;
+    const appointmentId = request.params.id;
+    const overlap = await Appointment.findAppointmentWithId(appointmentId);
+    return response.render("overlap", {
+      appointmentId,
+      appointmentName: overlap.appointmentName,
+      start: overlap.start,
+      end: overlap.end,
+      csrfToken: request.csrfToken(),
+    });
+  }
+);
+
+app.post(
+  "/tasks/:id/",
+  connectEnsureLogin.ensureLoggedIn(),
+  async (request, response) => {
+    try {
+      const userId = request.user.id;
+      if (request.body.appointment.length < 5) {
+        request.flash("error", "Length of the Appointment Should be atleast 5");
+        return response.redirect(`/tasks/${request.params.id}`);
+      }
+      let startTime = request.body.start;
+      let endTime = request.body.end;
+      let startSec = new Date(startTime).getTime() / 1000;
+      let now = new Date().getTime() / 1000;
+      if (startSec < now) {
+        request.flash(
+          "error",
+          "Sorry, You cannot schedule appointments in past time"
+        );
+        return response.redirect(`/tasks/${request.params.id}`);
+      }
+
+      if (startTime == false) {
+        request.flash("error", "Please choose start time");
+        return response.redirect(`/tasks/${request.params.id}`);
+      }
+      if (endTime == false) {
+        request.flash("error", "Please choose end time");
+        return response.redirect(`/tasks/${request.params.id}`);
+      }
+      if (request.body.start > request.body.end) {
+        request.flash("error", "End time cannot be before Start time");
+        return response.redirect(`/tasks/${request.params.id}`);
+      }
+      let allAppointments = await Appointment.allAppointments(userId);
+      const alreadyOccupied = await Appointment.checkSlot({
+        start: startTime,
+        end: endTime,
+      });
+
+      let newStart = request.body.start;
+      let newEnd = request.body.end;
+      startSec = new Date(newStart).getTime() / 1000;
+      let endSec = new Date(newEnd).getTime() / 1000;
+      console.log(startSec + "wekjndjwknenkdj");
+      let overlay = false;
+      for (let i = 0; i < allAppointments.length; i++) {
+        console.log(allAppointments[0].start + "ebkhbdewbk");
+        let checkStart = new Date(allAppointments[i].start).getTime() / 1000;
+        console.log(checkStart + "hfbhcbdhf");
+        let checkEnd = new Date(allAppointments[i].end).getTime() / 1000;
+        if (checkStart <= startSec && startSec <= checkEnd) {
+          console.log(checkStart, startSec, checkEnd + "jojdiqnd");
+          overlay = true;
+          request.flash(
+            "error",
+            "Entered Appointment is overlapping with existing Appointment"
+          );
+          return response.redirect(`/tasks/${allAppointments[i].id}`);
+        } else if (startSec <= checkEnd && checkEnd <= endSec) {
+          overlay = true;
+          request.flash(
+            "error",
+            "Entered Appointment is overlapping with existing Appointment"
+          );
+          return response.redirect(`/tasks/${allAppointments[i].id}`);
+        } else if (checkStart <= startSec && endSec <= checkEnd) {
+          overlay = true;
+          request.flash(
+            "error",
+            "Entered Appointment is overlapping with existing Appointment"
+          );
+          return response.redirect(`/tasks/${allAppointments[i].id}`);
+        } else if (startSec <= checkStart && endSec >= checkEnd) {
+          overlay = true;
+          request.flash(
+            "error",
+            "Entered Appointment is overlapping with existing Appointment"
+          );
+          return response.redirect(`/tasks/${allAppointments[i].id}`);
+        }
+      }
+
+      await Appointment.override({
+        appointmentName: request.body.appointment,
+        start: request.body.start,
+        end: request.body.end,
+        id: request.params.id,
+        userId: userId,
+      });
+      request.flash("success", "Overrided Succesfully");
+      return response.redirect("/tasks");
+    } catch (error) {
+      console.log(error);
+    }
+  }
+);
+//edit appointment get request
+app.get(
+  "/appointment/:id/edit",
+  connectEnsureLogin.ensureLoggedIn(),
+  async (request, response) => {
+    let userId = request.user.id;
+    let appointmentId = request.params.id;
+    const appointment = await Appointment.findAppointment({
+      id: appointmentId,
+      userId,
+    });
+    try {
+      if (request.accepts("html")) {
+        response.render("editAppointment", {
+          appointmentName: appointment.appointmentName,
+          id: request.params.id,
+          userId: request.user.id,
+          csrfToken: request.csrfToken(),
+        });
+      } else {
+        response.json(appointment);
+      }
+    } catch (error) {
+      console.log(error);
+      return response.status(422).json(error);
+    }
+  }
+);
+//edit appointment post request
+app.post(
+  "/appointments/:appointmentId/:userId/edit",
+  connectEnsureLogin.ensureLoggedIn(),
+  async (request, response) => {
+    {
+      console.log(request.params.appointmentId + "hggsggggssssss");
+      console.log(request.params.userId + "heduhweohdioh");
+      try {
+        const updatedAppointment = await Appointment.updateAppointment({
+          appointmentName: request.body.appointment,
+          id: request.params.appointmentId,
+        });
+        if (updatedAppointment) {
+          return response.redirect("/tasks");
+        }
+      } catch (error) {
+        console.log(error);
+        return response.status(422).json(error);
+      }
+    }
+  }
+);
+//delete the appointment
+app.delete(
+  "/appointments/:id/delete",
+  connectEnsureLogin.ensureLoggedIn(),
+  async (request, response) => {
+    {
+      try {
+        const appointment = await Appointment.findAppointmentWithId(
+          request.params.id
+        );
+        const deletedAppointment = await Appointment.deleteAppointment(
+          request.params.id
+        );
+        return response.json({ success: deletedAppointment === 1 });
+      } catch (error) {
+        console.log(error);
+        return response.status(422).json(error);
+      }
+    }
+  }
+);
+//reset password get request
+app.get(
+  "/user/passwordReset",
+  connectEnsureLogin.ensureLoggedIn(),
+  (request, response) => {
+    if (request.user) {
+      response.render("PasswordReset", {
+        csrfToken: request.csrfToken(),
+      });
+    }
+  }
+);
+//reset password page post request
+app.post(
+  "/user/passwordReset",
+  connectEnsureLogin.ensureLoggedIn(),
+  async (request, response) => {
+    if (request.user) {
+      if (!request.body.oldpassword) {
+        request.flash("error", "Old Password Field Cannot Be Empty");
+        return response.redirect("/user/passwordReset");
+      }
+      if (!request.body.newpassword) {
+        request.flash("error", "New Password Field Cannot Be Empty");
+        return response.redirect("/user/passwordReset");
+      }
+      if (request.body.newpassword.length < 8) {
+        request.flash("error", "Password length should be atleast 8");
+        return response.redirect("/user/passwordReset");
+      }
+      const res = await bcrypt.compare(
+        request.body.newpassword,
+        request.user.password
+      );
+      if (res) {
+        request.flash(
+          "error",
+          "New password cannot be same as existing password"
+        );
+        return response.redirect("/user/passwordReset");
+      }
+      const hashedNewPwd = await bcrypt.hash(
+        request.body.newpassword,
+        saltRounds
+      );
+      const result = await bcrypt.compare(
+        request.body.oldpassword,
+        request.user.password
+      );
+      if (result) {
+        try {
+          User.findOne({ where: { email: request.user.email } }).then(
+            (user) => {
+              user.resetPassword(hashedNewPwd);
+            }
+          );
+          request.flash("success", "Password changed successfully");
+          return response.redirect("/tasks");
+        } catch (error) {
+          console.log(error);
+          return response.status(422).json(error);
+        }
+      } else {
+        request.flash("error", "Incorrect Old Password");
+        return response.redirect("/user/passwordReset");
+      }
+    }
+  }
+);
+//404 page
+app.use(function (request, response) {
+  response.status(404).render("error");
 });
 
 module.exports = app;
