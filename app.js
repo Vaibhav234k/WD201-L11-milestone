@@ -1,3 +1,5 @@
+/* eslint-disable no-undef */
+/* eslint-disable no-unused-vars */
 const express = require("express");
 const app = express();
 const { Appointment, User } = require("./models");
@@ -10,14 +12,17 @@ const session = require("express-session");
 const LocalStrategy = require("passport-local");
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
+const moment = require("moment");
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser("shh! some secret string"));
 app.use(csrf("this_should_be_32_character_long", ["POST", "PUT", "DELETE"]));
 const path = require("path");
+// eslint-disable-next-line no-undef
 app.use(express.static(path.join(__dirname, "public")));
 const flash = require("connect-flash");
 const { time } = require("console");
+// eslint-disable-next-line no-undef
 app.set("views", path.join(__dirname, "views"));
 app.use(flash());
 app.set("view engine", "ejs");
@@ -36,9 +41,7 @@ app.use(function (request, response, next) {
 });
 app.use(passport.initialize());
 app.use(passport.session());
-//localStrategy login
 passport.use(
-  "local",
   new LocalStrategy(
     {
       usernameField: "email",
@@ -73,7 +76,7 @@ passport.deserializeUser((id, done) => {
       done(error, null);
     });
 });
-// if user goto task else login page
+// Home page
 app.get("/", async (request, response) => {
   if (request.user) {
     return response.redirect("/tasks");
@@ -84,7 +87,19 @@ app.get("/", async (request, response) => {
     });
   }
 });
-
+// Sign up
+app.get("/signup", async (request, response) => {
+  response.render("signup", {
+    title: "Create A New Account",
+    csrfToken: request.csrfToken(),
+  });
+});
+app.get("/login", async (request, response) => {
+  response.render("login", {
+    title: "Sign In",
+    csrfToken: request.csrfToken(),
+  });
+});
 app.get("/signout", (request, response, next) => {
   request.logout((err) => {
     if (err) {
@@ -93,8 +108,9 @@ app.get("/signout", (request, response, next) => {
     response.redirect("/");
   });
 });
-
-//new Account
+app.get("/home", async (request, response) => {
+  return response.redirect("/");
+});
 app.post("/newaccount", async (request, response) => {
   if (request.body.firstName == false) {
     request.flash("error", "Please Enter Your First Name");
@@ -137,8 +153,17 @@ app.post("/newaccount", async (request, response) => {
     return response.redirect("/signup");
   }
 });
-
-// tasks page
+app.post(
+  "/login",
+  passport.authenticate("local", {
+    failureRedirect: "/login",
+    failureFlash: true,
+  }),
+  (request, response) => {
+    console.log(request.user);
+    response.redirect("/tasks");
+  }
+);
 app.get(
   "/tasks",
   connectEnsureLogin.ensureLoggedIn(),
@@ -172,32 +197,6 @@ app.get(
     }
   }
 );
-
-//Home page
-app.get("/home", async (request, response) => {
-  return response.redirect("/");
-});
-
-// login the user
-app.get("/login", async (request, response) => {
-  response.render("login", {
-    title: "Sign In",
-    csrfToken: request.csrfToken(),
-  });
-});
-//app.post login
-app.post(
-  "/login",
-  passport.authenticate("local", {
-    failureRedirect: "/login",
-    failureFlash: true,
-  }),
-  (request, response) => {
-    console.log(request.user);
-    response.redirect("/tasks");
-  }
-);
-//app.get get request
 app.get(
   "/appointment/new",
   connectEnsureLogin.ensureLoggedIn(),
@@ -208,8 +207,6 @@ app.get(
     });
   }
 );
-
-//New appoinment post request
 app.post(
   "/appointments/new",
   connectEnsureLogin.ensureLoggedIn(),
@@ -315,9 +312,7 @@ app.post(
         });
         return response.redirect("/tasks");
       } else {
-        console.log(
-          alreadyOccupied + "OOOOOOpppppssssssssssssssssssssssssssssssss"
-        );
+        console.log(alreadyOccupied + "shhhhhhhhhhhhhhhhhh");
         request.flash(
           "error",
           "Two Appointments are overlapping,Edit the below appointment"
@@ -330,19 +325,6 @@ app.post(
     }
   }
 );
-
-// sign up the user
-app.get("/signup", (request, response) => {
-  response.render("signup", {
-    title: "Signup",
-    csrfToken: request.csrfToken(),
-  });
-});
-
-app.get("/home", async (request, response) => {
-  return response.redirect("/");
-});
-
 app.get(
   "/tasks/:id",
   connectEnsureLogin.ensureLoggedIn(),
@@ -457,7 +439,6 @@ app.post(
     }
   }
 );
-//edit appointment get request
 app.get(
   "/appointment/:id/edit",
   connectEnsureLogin.ensureLoggedIn(),
@@ -485,7 +466,6 @@ app.get(
     }
   }
 );
-//edit appointment post request
 app.post(
   "/appointments/:appointmentId/:userId/edit",
   connectEnsureLogin.ensureLoggedIn(),
@@ -508,7 +488,6 @@ app.post(
     }
   }
 );
-//delete the appointment
 app.delete(
   "/appointments/:id/delete",
   connectEnsureLogin.ensureLoggedIn(),
@@ -529,7 +508,6 @@ app.delete(
     }
   }
 );
-//reset password get request
 app.get(
   "/user/passwordReset",
   connectEnsureLogin.ensureLoggedIn(),
@@ -541,7 +519,6 @@ app.get(
     }
   }
 );
-//reset password page post request
 app.post(
   "/user/passwordReset",
   connectEnsureLogin.ensureLoggedIn(),
@@ -598,9 +575,8 @@ app.post(
     }
   }
 );
-//404 page
 app.use(function (request, response) {
   response.status(404).render("error");
 });
-
+// eslint-disable-next-line no-undef
 module.exports = app;
